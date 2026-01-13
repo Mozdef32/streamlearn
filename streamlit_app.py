@@ -6,7 +6,7 @@ import plotly.express as px
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Global Weather Analytics", page_icon="🌤️", layout="wide")
 
-st.title("🌏 Global Weather Data Explorer")
+st.title("🌏 Global Weather Data Exploooooooooorer")
 st.markdown("A hobbyist tool to analyze real-time atmospheric data from any city in the world.")
 
 # --- SIDEBAR ---
