@@ -1,75 +1,65 @@
 import streamlit as st
-import requests
 import pandas as pd
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# --- PAGE SETUP ---
-st.set_page_config(page_title="Global Weather Analytics", page_icon="🌤️", layout="wide")
+# --- CONFIG ---
+st.set_page_config(page_title="Data Insights Pro", layout="wide")
 
-st.title("🌏 Global Weather Data Exploooooooooorer")
-st.markdown("A hobbyist tool to analyze real-time atmospheric data from any city in the world.")
+st.title("📊 Smart Data Profiler")
+st.markdown("Upload any dataset to get an instant structural analysis.")
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("Search Settings")
-    city = st.text_input("Enter City Name:", "Casablanca")
-    unit = st.radio("Temperature Unit:", ["Celsius", "Fahrenheit"])
-    st.divider()
-    st.info("Data source: wttr.in (Open Source API)")
+# --- FILE UPLOADER ---
+uploaded_file = st.file_uploader("Choose a CSV or Excel file", type=['csv', 'xlsx'])
 
-# --- DATA FETCHING ---
-@st.cache_data # This keeps the app fast by not re-downloading data on every click
-def get_weather_data(city):
-    url = f"https://wttr.in/{city}?format=j1"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    return None
+if uploaded_file is not None:
+    # Load data
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
 
-data = get_weather_data(city)
+    # --- SIDEBAR FILTERS ---
+    st.sidebar.header("Filter Data")
+    all_columns = df.columns.tolist()
+    selected_columns = st.sidebar.multiselect("Select Columns to Analyze", all_columns, default=all_columns[:5])
 
-if data:
-    current = data['current_condition'][0]
-    temp = current['temp_C'] if unit == "Celsius" else current['temp_F']
-    
-    # --- TOP METRICS ---
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Current Temp", f"{temp}°")
-    col2.metric("Humidity", f"{current['humidity']}%")
-    col3.metric("Wind Speed", f"{current['windspeedKmph']} km/h")
-    col4.metric("Cloud Cover", f"{current['cloudcover']}%")
+    # --- MAIN TABS ---
+    tab1, tab2, tab3 = st.tabs(["📋 Raw Data", "📈 Statistics", "🔗 Correlations"])
 
-    st.divider()
+    with tab1:
+        st.subheader("Data Preview")
+        st.dataframe(df[selected_columns].head(10), use_container_width=True)
+        
+        col1, col2 = st.columns(2)
+        col1.write(f"**Total Rows:** {df.shape[0]}")
+        col2.write(f"**Total Columns:** {df.shape[1]}")
 
-    # --- FORECAST DATA ANALYSIS ---
-    st.subheader(f"Next 24-Hour Trend for {city.title()}")
-    
-    # Extracting hourly forecast for the first day
-    hourly_raw = data['weather'][0]['hourly']
-    
-    # Structuring data for analysis
-    forecast_list = []
-    for h in hourly_raw:
-        forecast_list.append({
-            "Time": f"{int(h['time'])//100}:00",
-            "Temp": int(h['tempC']) if unit == "Celsius" else int(h['tempF']),
-            "FeelsLike": int(h['FeelsLikeC']) if unit == "Celsius" else int(h['FeelsLikeF']),
-            "Chance of Rain": int(h['chanceofrain'])
-        })
-    
-    df = pd.DataFrame(forecast_list)
+    with tab2:
+        st.subheader("Numerical Summary")
+        st.write(df.describe())
+        
+        st.subheader("Missing Values")
+        missing = df.isnull().sum()
+        st.write(missing[missing > 0] if missing.sum() > 0 else "No missing values found! ✅")
 
-    # Visual 1: Temperature vs Feels Like
-    fig_temp = px.line(df, x="Time", y=["Temp", "FeelsLike"], 
-                      title="Temperature vs. Perceived Temperature",
-                      markers=True, template="plotly_white")
-    st.plotly_chart(fig_temp, use_container_width=True)
-
-    # Visual 2: Rainfall Probability
-    fig_rain = px.area(df, x="Time", y="Chance of Rain", 
-                      title="Probability of Precipitation (%)",
-                      color_discrete_sequence=['#00CC96'], template="plotly_white")
-    st.plotly_chart(fig_rain, use_container_width=True)
+    with tab3:
+        st.subheader("Correlation Heatmap")
+        numeric_df = df.select_dtypes(include=['number'])
+        
+        if not numeric_df.empty:
+            corr = numeric_df.corr()
+            fig = px.imshow(corr, text_auto=True, aspect="auto", 
+                           color_continuous_scale='RdBu_r',
+                           title="How variables relate to each other")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Add some numerical columns to see correlations.")
 
 else:
-    st.error("Could not find data for that city. Please check the spelling.")
+    st.info("💡 Hint: Try uploading one of your provincial project exports or a simple budget sheet.")
+
+# --- FOOTER ---
+st.divider()
+st.caption("Built for high-efficiency data analysis | Powered by Streamlit")
